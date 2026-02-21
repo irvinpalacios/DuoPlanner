@@ -465,13 +465,13 @@ export default function App() {
       <MatchOverlay show={showMatch} onComplete={() => setShowMatch(false)} />
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 px-6 py-8 flex justify-between items-center pointer-events-none">
-        <div className="pointer-events-auto flex items-center gap-3">
-          <div className="w-12 h-12 bg-white rounded-3xl flex items-center justify-center shadow-lg shadow-coral/10 border border-white">
-            <Heart className="text-coral w-6 h-6 fill-coral" />
+      <header className="fixed top-0 left-0 right-0 z-50 px-6 py-6 flex justify-between items-center pointer-events-none">
+        <div className="pointer-events-auto flex items-center gap-2.5">
+          <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-lg shadow-coral/10 border border-white">
+            <Heart className="text-coral w-5 h-5 fill-coral" />
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tighter text-slate-800 italic">SyncStep</h1>
+            <h1 className="text-lg font-black tracking-tighter text-slate-800 italic">SyncStep</h1>
             <div className="flex gap-1 mt-0.5">
               <div 
                 onClick={() => setState(p => ({ ...p, currentUser: 'L' }))}
@@ -517,36 +517,36 @@ export default function App() {
               <div className="flex justify-between items-end">
                 <div>
                   <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Daily Flow</p>
-                  <h2 className="text-4xl font-black text-slate-800 tracking-tighter italic">The Schedule</h2>
+                  <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">The Schedule</h2>
                 </div>
                 <button 
                   onClick={() => setView('swipe')}
-                  className="px-5 py-2.5 rounded-2xl bg-white border border-white text-slate-600 text-xs font-bold hover:shadow-lg transition-all shadow-md shadow-coral/5"
+                  className="px-4 py-2 rounded-xl bg-white border border-white text-slate-600 text-[10px] font-bold hover:shadow-lg transition-all shadow-md shadow-coral/5"
                 >
                   Swipe ({backlogEvents.length})
                 </button>
               </div>
 
               {/* Energy Toggle */}
-              <div className="flex gap-2 p-1.5 bg-white/50 backdrop-blur-sm rounded-2xl border border-white/40 shadow-sm">
+              <div className="flex gap-1.5 p-1 bg-white/50 backdrop-blur-sm rounded-xl border border-white/40 shadow-sm">
                 <button 
                   onClick={() => setState(prev => ({ ...prev, energyMode: 'Busy' }))}
-                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${state.energyMode === 'Busy' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+                  className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${state.energyMode === 'Busy' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
                 >
-                  High Energy (Full Day)
+                  High Energy
                 </button>
                 <button 
                   onClick={() => setState(prev => ({ ...prev, energyMode: 'Light' }))}
-                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${state.energyMode === 'Light' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+                  className={`flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${state.energyMode === 'Light' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
                 >
-                  Low Energy (Gentle Day)
+                  Low Energy
                 </button>
               </div>
 
               {/* Frictionless Sync Button */}
               <button 
                 onClick={generateSchedule}
-                className="w-full py-4 rounded-2xl bg-white border border-white text-coral text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-coral/5"
+                className="w-full py-3 rounded-xl bg-white border border-white text-coral text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-coral/5"
               >
                 <Sparkles size={16} />
                 Frictionless Sync
@@ -712,23 +712,23 @@ export default function App() {
       </button>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-        <div className="glass flex items-center p-2 gap-2 bg-white/80 shadow-2xl shadow-coral/10">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 px-6 pb-6 pt-2 bg-gradient-to-t from-brand-bg-via to-transparent">
+        <div className="glass flex items-center p-1.5 gap-1.5 bg-white/70 backdrop-blur-lg shadow-2xl shadow-coral/10 max-w-xs mx-auto">
           <button 
             onClick={() => setView('schedule')}
-            className={`px-8 py-4 rounded-[1.5rem] text-sm font-black tracking-tight transition-all ${view === 'schedule' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex-1 py-3 rounded-[1.25rem] text-[10px] font-black uppercase tracking-widest transition-all ${view === 'schedule' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
           >
             Day
           </button>
           <button 
             onClick={() => setView('backlog')}
-            className={`px-8 py-4 rounded-[1.5rem] text-sm font-black tracking-tight transition-all ${view === 'backlog' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex-1 py-3 rounded-[1.25rem] text-[10px] font-black uppercase tracking-widest transition-all ${view === 'backlog' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
           >
             Pool
           </button>
           <button 
             onClick={() => setView('swipe')}
-            className={`px-8 py-4 rounded-[1.5rem] text-sm font-black tracking-tight transition-all ${view === 'swipe' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+            className={`flex-1 py-3 rounded-[1.25rem] text-[10px] font-black uppercase tracking-widest transition-all ${view === 'swipe' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
           >
             Swipe
           </button>
@@ -755,98 +755,98 @@ export default function App() {
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               className="relative w-full max-w-md"
             >
-              <GlassCard className="p-10 bg-white shadow-2xl shadow-coral/20">
-                <div className="flex justify-between items-center mb-10">
-                  <h3 className="text-3xl font-black text-slate-800 tracking-tighter italic">New Sync Item</h3>
+              <GlassCard className="p-6 bg-white shadow-2xl shadow-coral/20 rounded-[2.5rem]">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-black text-slate-800 tracking-tighter italic">New Sync Item</h3>
                   <button onClick={() => {
                     setShowForm(false);
                     setIsAdding(false);
                   }} className="text-slate-300 hover:text-slate-800">
-                    <X size={28} />
+                    <X size={24} />
                   </button>
                 </div>
                 
-                <form onSubmit={addEvent} className="space-y-8">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Event Name</label>
+                <form onSubmit={addEvent} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Event Name</label>
                     <input 
                       required
                       name="name"
                       placeholder="e.g. Dinner Date"
-                      className="w-full bg-slate-50 border-none rounded-2xl px-6 py-5 text-slate-800 font-bold placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-coral/20 transition-all"
+                      className="w-full bg-slate-50 border-none rounded-xl px-4 h-12 text-slate-800 font-bold placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-coral/20 transition-all"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Location</label>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Location</label>
                     <input 
                       name="location"
                       placeholder="e.g. The Rooftop"
-                      className="w-full bg-slate-50 border-none rounded-2xl px-6 py-5 text-slate-800 font-bold placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-coral/20 transition-all"
+                      className="w-full bg-slate-50 border-none rounded-xl px-4 h-12 text-slate-800 font-bold placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-coral/20 transition-all"
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Start</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Start</label>
                       <input 
                         required
                         type="time"
                         name="startTime"
                         defaultValue="18:00"
-                        className="w-full bg-slate-50 border-none rounded-2xl px-6 py-5 text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-coral/20 transition-all"
+                        className="w-full bg-slate-50 border-none rounded-xl px-4 h-12 text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-coral/20 transition-all"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">End</label>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">End</label>
                       <input 
                         required
                         type="time"
                         name="endTime"
                         defaultValue="19:30"
-                        className="w-full bg-slate-50 border-none rounded-2xl px-6 py-5 text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-coral/20 transition-all"
+                        className="w-full bg-slate-50 border-none rounded-xl px-4 h-12 text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-coral/20 transition-all"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Energy Level</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Energy Level</label>
                       <select 
                         name="energyLevel"
-                        className="w-full bg-slate-50 border-none rounded-2xl px-6 py-5 text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-coral/20 transition-all appearance-none"
+                        className="w-full bg-slate-50 border-none rounded-xl px-4 h-12 text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-coral/20 transition-all appearance-none"
                       >
-                        <option value="High">High Energy</option>
-                        <option value="Low">Low Energy</option>
+                        <option value="High">High</option>
+                        <option value="Low">Low</option>
                       </select>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Type</label>
-                      <div className="flex items-center gap-2 h-[60px]">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Type</label>
+                      <div className="flex items-center gap-2 h-12 bg-slate-50 rounded-xl px-4">
                         <input 
                           type="checkbox" 
                           name="isSolo" 
                           id="isSolo"
-                          className="w-6 h-6 rounded-lg border-slate-200 bg-white text-sky focus:ring-0"
+                          className="w-5 h-5 rounded-md border-slate-200 bg-white text-sky focus:ring-0"
                         />
-                        <label htmlFor="isSolo" className="text-sm font-bold text-slate-500 select-none">Solo Task</label>
+                        <label htmlFor="isSolo" className="text-[10px] font-bold text-slate-500 select-none">Solo Task</label>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <input 
                       type="checkbox" 
                       name="isPriority" 
                       id="isPriority"
-                      className="w-6 h-6 rounded-lg border-slate-200 bg-white text-coral focus:ring-0"
+                      className="w-5 h-5 rounded-md border-slate-200 bg-white text-coral focus:ring-0"
                     />
-                    <label htmlFor="isPriority" className="text-sm font-bold text-slate-500 select-none">Mark as Priority</label>
+                    <label htmlFor="isPriority" className="text-[10px] font-bold text-slate-500 select-none">Mark as Priority</label>
                   </div>
 
                   <button 
                     type="submit"
-                    className="w-full h-20 fab-gradient text-white rounded-[2rem] font-black text-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-2xl shadow-coral/30"
+                    className="w-full h-14 fab-gradient text-white rounded-2xl font-black text-base hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-coral/30"
                   >
                     Add to Backlog
                   </button>
