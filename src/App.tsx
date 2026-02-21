@@ -24,6 +24,7 @@ import confetti from 'canvas-confetti';
 // --- Types ---
 
 type EventStatus = 'backlog' | 'approved' | 'discarded' | 'fixed';
+type EnergyLevel = 'High' | 'Low';
 
 interface SyncEvent {
   id: string;
@@ -32,6 +33,8 @@ interface SyncEvent {
   startTime: string; // HH:mm
   endTime: string;   // HH:mm
   status: EventStatus;
+  energyLevel: EnergyLevel;
+  isSolo: boolean;
   approvedBy: string[]; // Track which users approved
   createdAt: number;
 }
@@ -39,12 +42,14 @@ interface SyncEvent {
 interface AppState {
   events: SyncEvent[];
   dayStartTime: string; // HH:mm
+  dayEndTime: string;   // HH:mm
+  energyMode: 'Busy' | 'Light';
   currentUser: 'L' | 'I';
 }
 
 // --- Utils ---
 
-const STORAGE_KEY = 'syncstep_data_v2';
+const STORAGE_KEY = 'syncstep_data_v3';
 
 const timeToMinutes = (time: string) => {
   const [hours, minutes] = time.split(':').map(Number);
@@ -113,7 +118,19 @@ const SwipeCard: React.FC<SwipeCardProps> = ({
             <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center border border-orange-200">
               <Calendar className="text-orange-500 w-6 h-6" />
             </div>
-            <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">Backlog Item</span>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">Backlog Item</span>
+              <div className="flex gap-1 mt-1">
+                <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase ${event.energyLevel === 'High' ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                  {event.energyLevel} Energy
+                </span>
+                {event.isSolo && (
+                  <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-600 font-black uppercase">
+                    Solo
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
           <h3 className="text-3xl font-bold text-slate-800 mb-2 leading-tight">{event.name}</h3>
           <div className="flex items-center gap-2 text-slate-500 text-sm">
@@ -192,6 +209,8 @@ export default function App() {
     return saved ? JSON.parse(saved) : {
       events: [],
       dayStartTime: '08:00',
+      dayEndTime: '20:00',
+      energyMode: 'Busy',
       currentUser: 'L'
     };
   });
@@ -215,6 +234,8 @@ export default function App() {
       startTime: formData.get('startTime') as string,
       endTime: formData.get('endTime') as string,
       status: (formData.get('isPriority') === 'on' ? 'fixed' : 'backlog') as EventStatus,
+      energyLevel: (formData.get('energyLevel') || 'Low') as EnergyLevel,
+      isSolo: formData.get('isSolo') === 'on',
       approvedBy: [],
       createdAt: Date.now()
     };
@@ -264,6 +285,125 @@ export default function App() {
       ...prev,
       events: prev.events.filter(e => e.id !== id)
     }));
+  };
+
+  const generateSchedule = () => {
+    const totalMinutes = timeToMinutes(state.dayEndTime) - timeToMinutes(state.dayStartTime);
+    const targetSharedMinutes = totalMinutes * (state.energyMode === 'Busy' ? 0.8 : 0.4);
+    const targetSoloMinutes = state.energyMode === 'Light' ? totalMinutes * 0.4 : 0;
+
+    // 1. Get fixed events
+    const fixedEvents = state.events.filter(e => e.status === 'fixed');
+    
+    // 2. Get candidates from backlog
+    const backlog = state.events.filter(e => e.status === 'backlog');
+    
+    let currentSharedMinutes = fixedEvents.reduce((acc, e) => acc + getDuration(e.startTime, e.endTime), 0);
+    let currentSoloMinutes = 0;
+
+    // Sort backlog based on energy level
+    const sharedCandidates = backlog.filter(e => !e.isSolo)
+      .sort((a, b) => {
+        if (state.energyMode === 'Busy') {
+          // Prioritize High Energy for Busy mode
+          if (a.energyLevel === 'High' && b.energyLevel === 'Low') return -1;
+          if (a.energyLevel === 'Low' && b.energyLevel === 'High') return 1;
+        } else {
+          // Only Low Energy for Light mode shared tasks
+          if (a.energyLevel === 'High') return 1;
+          if (b.energyLevel === 'High') return -1;
+        }
+        return 0;
+      });
+
+    const soloCandidates = backlog.filter(e => e.isSolo);
+
+    const newEvents = state.events.map(e => {
+      if (e.status === 'approved') return { ...e, status: 'backlog' as EventStatus, approvedBy: [] };
+      return e;
+    });
+
+    // Helper to find gaps
+    const getGaps = (events: SyncEvent[]) => {
+      const sorted = [...events].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+      const gaps: { start: number; end: number }[] = [];
+      let lastEnd = timeToMinutes(state.dayStartTime);
+
+      for (const e of sorted) {
+        const start = timeToMinutes(e.startTime);
+        if (start > lastEnd) {
+          gaps.push({ start: lastEnd, end: start });
+        }
+        lastEnd = Math.max(lastEnd, timeToMinutes(e.endTime));
+      }
+
+      const dayEnd = timeToMinutes(state.dayEndTime);
+      if (dayEnd > lastEnd) {
+        gaps.push({ start: lastEnd, end: dayEnd });
+      }
+      return gaps;
+    };
+
+    let currentEvents = [...fixedEvents];
+    
+    // Fill shared
+    for (const item of sharedCandidates) {
+      if (state.energyMode === 'Light' && item.energyLevel === 'High') continue;
+      if (currentSharedMinutes >= targetSharedMinutes) break;
+
+      const duration = getDuration(item.startTime, item.endTime);
+      const gaps = getGaps(currentEvents);
+      const gap = gaps.find(g => (g.end - g.start) >= duration);
+
+      if (gap) {
+        const updatedItem = {
+          ...item,
+          status: 'approved' as EventStatus,
+          startTime: minutesToTime(gap.start),
+          endTime: minutesToTime(gap.start + duration),
+          approvedBy: ['L', 'I'] // Auto-approved by both for sync
+        };
+        currentEvents.push(updatedItem);
+        currentSharedMinutes += duration;
+        
+        const idx = newEvents.findIndex(e => e.id === item.id);
+        newEvents[idx] = updatedItem;
+      }
+    }
+
+    // Fill solo (only in Light mode)
+    if (state.energyMode === 'Light') {
+      for (const item of soloCandidates) {
+        if (currentSoloMinutes >= targetSoloMinutes) break;
+
+        const duration = getDuration(item.startTime, item.endTime);
+        const gaps = getGaps(currentEvents);
+        const gap = gaps.find(g => (g.end - g.start) >= duration);
+
+        if (gap) {
+          const updatedItem = {
+            ...item,
+            status: 'approved' as EventStatus,
+            startTime: minutesToTime(gap.start),
+            endTime: minutesToTime(gap.start + duration),
+            approvedBy: [state.currentUser] // Solo is approved by current user
+          };
+          currentEvents.push(updatedItem);
+          currentSoloMinutes += duration;
+
+          const idx = newEvents.findIndex(e => e.id === item.id);
+          newEvents[idx] = updatedItem;
+        }
+      }
+    }
+
+    setState(prev => ({ ...prev, events: newEvents }));
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#FF8E8E', '#FFCF71']
+    });
   };
 
   const backlogEvents = state.events.filter(e => e.status === 'backlog' && !e.approvedBy.includes(state.currentUser));
@@ -373,16 +513,43 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-8"
           >
-            <div className="flex justify-between items-end">
-              <div>
-                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Daily Flow</p>
-                <h2 className="text-4xl font-black text-slate-800 tracking-tighter italic">The Schedule</h2>
+            <div className="flex flex-col gap-6">
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Daily Flow</p>
+                  <h2 className="text-4xl font-black text-slate-800 tracking-tighter italic">The Schedule</h2>
+                </div>
+                <button 
+                  onClick={() => setView('swipe')}
+                  className="px-5 py-2.5 rounded-2xl bg-white border border-white text-slate-600 text-xs font-bold hover:shadow-lg transition-all shadow-md shadow-coral/5"
+                >
+                  Swipe ({backlogEvents.length})
+                </button>
               </div>
+
+              {/* Energy Toggle */}
+              <div className="flex gap-2 p-1.5 bg-white/50 backdrop-blur-sm rounded-2xl border border-white/40 shadow-sm">
+                <button 
+                  onClick={() => setState(prev => ({ ...prev, energyMode: 'Busy' }))}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${state.energyMode === 'Busy' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  High Energy (Full Day)
+                </button>
+                <button 
+                  onClick={() => setState(prev => ({ ...prev, energyMode: 'Light' }))}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${state.energyMode === 'Light' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  Low Energy (Gentle Day)
+                </button>
+              </div>
+
+              {/* Frictionless Sync Button */}
               <button 
-                onClick={() => setView('swipe')}
-                className="px-5 py-2.5 rounded-2xl bg-white border border-white text-slate-600 text-xs font-bold hover:shadow-lg transition-all shadow-md shadow-coral/5"
+                onClick={generateSchedule}
+                className="w-full py-4 rounded-2xl bg-white border border-white text-coral text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-coral/5"
               >
-                Swipe ({backlogEvents.length})
+                <Sparkles size={16} />
+                Frictionless Sync
               </button>
             </div>
 
@@ -403,15 +570,28 @@ export default function App() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.05 }}
                 >
-                  <GlassCard className={`p-6 ${event.status === 'fixed' ? 'border-coral/20 bg-coral/5' : ''}`}>
+                  <GlassCard className={`p-6 ${
+                    event.status === 'fixed' ? 'border-coral/20 bg-coral/5' : 
+                    state.energyMode === 'Light' && event.isSolo ? 'border-sky/40 border-2 bg-white' :
+                    state.energyMode === 'Light' && event.energyLevel === 'Low' ? 'bg-white/40 border-white/20' :
+                    'bg-white'
+                  }`}>
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-2">
                         <Clock size={12} className="text-slate-300" />
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{event.actualStart} — {event.actualEnd}</span>
                       </div>
-                      {event.status === 'fixed' && (
-                        <span className="text-[9px] px-2 py-0.5 rounded-full bg-coral text-white font-black uppercase tracking-tighter">Priority</span>
-                      )}
+                      <div className="flex gap-1">
+                        {event.isSolo && (
+                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-sky text-white font-black uppercase tracking-tighter">Solo</span>
+                        )}
+                        {event.energyLevel === 'Low' && (
+                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-600 font-black uppercase tracking-tighter">Low Energy</span>
+                        )}
+                        {event.status === 'fixed' && (
+                          <span className="text-[9px] px-2 py-0.5 rounded-full bg-coral text-white font-black uppercase tracking-tighter">Priority</span>
+                        )}
+                      </div>
                     </div>
                     <h4 className="text-xl font-bold text-slate-800 tracking-tight">{event.name}</h4>
                     <div className="flex items-center gap-2 mt-3 text-slate-400 text-xs font-medium">
@@ -446,6 +626,16 @@ export default function App() {
                       <h4 className="font-bold text-slate-800">{event.name}</h4>
                       <div className="flex gap-2 mt-1 items-center">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{event.startTime} - {event.endTime}</p>
+                        <div className="flex gap-1">
+                          <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase ${event.energyLevel === 'High' ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                            {event.energyLevel}
+                          </span>
+                          {event.isSolo && (
+                            <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-600 font-black uppercase">
+                              Solo
+                            </span>
+                          )}
+                        </div>
                         <div className="flex gap-0.5">
                           {event.approvedBy.map(u => (
                             <div key={u} className={`w-3 h-3 rounded-full ${u === 'L' ? 'bg-coral' : 'bg-sky'}`} />
@@ -619,6 +809,31 @@ export default function App() {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Energy Level</label>
+                      <select 
+                        name="energyLevel"
+                        className="w-full bg-slate-50 border-none rounded-2xl px-6 py-5 text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-coral/20 transition-all appearance-none"
+                      >
+                        <option value="High">High Energy</option>
+                        <option value="Low">Low Energy</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Type</label>
+                      <div className="flex items-center gap-2 h-[60px]">
+                        <input 
+                          type="checkbox" 
+                          name="isSolo" 
+                          id="isSolo"
+                          className="w-6 h-6 rounded-lg border-slate-200 bg-white text-sky focus:ring-0"
+                        />
+                        <label htmlFor="isSolo" className="text-sm font-bold text-slate-500 select-none">Solo Task</label>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
                     <input 
                       type="checkbox" 
@@ -655,6 +870,13 @@ export default function App() {
                 type="time" 
                 value={state.dayStartTime}
                 onChange={(e) => setState(prev => ({ ...prev, dayStartTime: e.target.value }))}
+                className="w-full bg-transparent border-none text-slate-800 font-bold focus:ring-0 p-0 mt-2 text-xl"
+              />
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest mt-4 block">Day End Time</label>
+              <input 
+                type="time" 
+                value={state.dayEndTime}
+                onChange={(e) => setState(prev => ({ ...prev, dayEndTime: e.target.value }))}
                 className="w-full bg-transparent border-none text-slate-800 font-bold focus:ring-0 p-0 mt-2 text-xl"
               />
               <div className="mt-6 pt-6 border-t border-slate-100">
