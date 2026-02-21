@@ -29,9 +29,8 @@ type EnergyLevel = 'High' | 'Low';
 interface SyncEvent {
   id: string;
   name: string;
-  location: string;
   startTime: string; // HH:mm
-  endTime: string;   // HH:mm
+  duration: number;  // mins
   status: EventStatus;
   energyLevel: EnergyLevel;
   isSolo: boolean;
@@ -111,16 +110,16 @@ const SwipeCard: React.FC<SwipeCardProps> = ({
     >
       <motion.div 
         style={{ backgroundColor }}
-        className="glass h-full flex flex-col p-8 justify-between relative group shadow-xl"
+        className="glass h-full flex flex-col p-6 justify-between relative group shadow-xl rounded-[2rem]"
       >
         <div>
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center border border-orange-200">
-              <Calendar className="text-orange-500 w-6 h-6" />
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-10 h-10 rounded-2xl bg-orange-100 flex items-center justify-center border border-orange-200">
+              <Calendar className="text-orange-500 w-5 h-5" />
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">Backlog Item</span>
-              <div className="flex gap-1 mt-1">
+              <span className="text-[9px] font-black tracking-widest text-slate-400 uppercase">Backlog Item</span>
+              <div className="flex gap-1 mt-0.5">
                 <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase ${event.energyLevel === 'High' ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'}`}>
                   {event.energyLevel} Energy
                 </span>
@@ -132,36 +131,32 @@ const SwipeCard: React.FC<SwipeCardProps> = ({
               </div>
             </div>
           </div>
-          <h3 className="text-3xl font-bold text-slate-800 mb-2 leading-tight">{event.name}</h3>
-          <div className="flex items-center gap-2 text-slate-500 text-sm">
-            <MapPin size={14} />
-            <span>{event.location || 'No location'}</span>
-          </div>
+          <h3 className="text-2xl font-bold text-slate-800 mb-1 leading-tight">{event.name}</h3>
         </div>
 
-        <div className="space-y-6">
-          <div className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100">
-            <div className="flex items-center gap-3">
-              <Clock className="text-slate-400" size={18} />
-              <span className="text-slate-700 font-medium">{event.startTime} - {event.endTime}</span>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-[1.5rem] border border-slate-100">
+            <div className="flex items-center gap-2">
+              <Clock className="text-slate-400" size={16} />
+              <span className="text-slate-700 font-medium text-sm">{event.startTime} — {minutesToTime(timeToMinutes(event.startTime) + event.duration)}</span>
             </div>
-            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">
-              {getDuration(event.startTime, event.endTime)} mins
+            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">
+              {event.duration} mins
             </span>
           </div>
           
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             <button 
               onClick={() => onSwipe('left')}
-              className="flex-1 h-16 rounded-2xl border border-slate-200 flex items-center justify-center hover:bg-rose-50 transition-colors group/btn"
+              className="flex-1 h-12 rounded-2xl border border-slate-200 flex items-center justify-center hover:bg-rose-50 transition-colors group/btn"
             >
-              <X className="text-slate-400 group-hover/btn:text-rose-500 transition-colors" />
+              <X className="text-slate-400 group-hover/btn:text-rose-500 transition-colors" size={20} />
             </button>
             <button 
               onClick={() => onSwipe('right')}
-              className="flex-1 h-16 rounded-2xl bg-slate-800 text-white flex items-center justify-center hover:bg-emerald-500 transition-colors shadow-lg shadow-slate-200"
+              className="flex-1 h-12 rounded-2xl bg-slate-800 text-white flex items-center justify-center hover:bg-emerald-500 transition-colors shadow-lg shadow-slate-200"
             >
-              <Check />
+              <Check size={20} />
             </button>
           </div>
         </div>
@@ -230,9 +225,8 @@ export default function App() {
     const newEvent: SyncEvent = {
       id: Math.random().toString(36).substr(2, 9),
       name: formData.get('name') as string,
-      location: formData.get('location') as string,
       startTime: formData.get('startTime') as string,
-      endTime: formData.get('endTime') as string,
+      duration: Number(formData.get('duration')) || 60,
       status: (formData.get('isPriority') === 'on' ? 'fixed' : 'backlog') as EventStatus,
       energyLevel: (formData.get('energyLevel') || 'Low') as EnergyLevel,
       isSolo: formData.get('isSolo') === 'on',
@@ -298,7 +292,7 @@ export default function App() {
     // 2. Get candidates from backlog
     const backlog = state.events.filter(e => e.status === 'backlog');
     
-    let currentSharedMinutes = fixedEvents.reduce((acc, e) => acc + getDuration(e.startTime, e.endTime), 0);
+    let currentSharedMinutes = fixedEvents.reduce((acc, e) => acc + e.duration, 0);
     let currentSoloMinutes = 0;
 
     // Sort backlog based on energy level
@@ -334,7 +328,7 @@ export default function App() {
         if (start > lastEnd) {
           gaps.push({ start: lastEnd, end: start });
         }
-        lastEnd = Math.max(lastEnd, timeToMinutes(e.endTime));
+        lastEnd = Math.max(lastEnd, timeToMinutes(e.startTime) + e.duration);
       }
 
       const dayEnd = timeToMinutes(state.dayEndTime);
@@ -351,7 +345,7 @@ export default function App() {
       if (state.energyMode === 'Light' && item.energyLevel === 'High') continue;
       if (currentSharedMinutes >= targetSharedMinutes) break;
 
-      const duration = getDuration(item.startTime, item.endTime);
+      const duration = item.duration;
       const gaps = getGaps(currentEvents);
       const gap = gaps.find(g => (g.end - g.start) >= duration);
 
@@ -360,7 +354,6 @@ export default function App() {
           ...item,
           status: 'approved' as EventStatus,
           startTime: minutesToTime(gap.start),
-          endTime: minutesToTime(gap.start + duration),
           approvedBy: ['L', 'I'] // Auto-approved by both for sync
         };
         currentEvents.push(updatedItem);
@@ -376,7 +369,7 @@ export default function App() {
       for (const item of soloCandidates) {
         if (currentSoloMinutes >= targetSoloMinutes) break;
 
-        const duration = getDuration(item.startTime, item.endTime);
+        const duration = item.duration;
         const gaps = getGaps(currentEvents);
         const gap = gaps.find(g => (g.end - g.start) >= duration);
 
@@ -385,7 +378,6 @@ export default function App() {
             ...item,
             status: 'approved' as EventStatus,
             startTime: minutesToTime(gap.start),
-            endTime: minutesToTime(gap.start + duration),
             approvedBy: [state.currentUser] // Solo is approved by current user
           };
           currentEvents.push(updatedItem);
@@ -431,13 +423,13 @@ export default function App() {
         finalSchedule.push({
           ...nextFixed,
           actualStart: nextFixed.startTime,
-          actualEnd: nextFixed.endTime
+          actualEnd: minutesToTime(timeToMinutes(nextFixed.startTime) + nextFixed.duration)
         });
-        currentTime = Math.max(currentTime, timeToMinutes(nextFixed.endTime));
+        currentTime = Math.max(currentTime, timeToMinutes(nextFixed.startTime) + nextFixed.duration);
         sortedFixed.shift();
       } else if (pendingApproved.length > 0) {
         const item = pendingApproved[0];
-        const duration = getDuration(item.startTime, item.endTime);
+        const duration = item.duration;
         
         if (!nextFixed || currentTime + duration <= timeToMinutes(nextFixed.startTime)) {
           finalSchedule.push({
@@ -594,10 +586,6 @@ export default function App() {
                       </div>
                     </div>
                     <h4 className="text-xl font-bold text-slate-800 tracking-tight">{event.name}</h4>
-                    <div className="flex items-center gap-2 mt-3 text-slate-400 text-xs font-medium">
-                      <MapPin size={12} />
-                      <span>{event.location}</span>
-                    </div>
                   </GlassCard>
                 </motion.div>
               ))}
@@ -613,41 +601,41 @@ export default function App() {
           >
             <div className="flex justify-between items-end">
               <div>
-                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Shared Pool</p>
-                <h2 className="text-4xl font-black text-slate-800 tracking-tighter italic">Backlog</h2>
+                <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest mb-1">Shared Pool</p>
+                <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">Backlog</h2>
               </div>
             </div>
 
-            <div className="grid gap-4">
+            <div className="grid gap-3">
               {state.events.filter(e => e.status !== 'discarded').map(event => (
                 <div key={event.id} className="group relative">
-                  <GlassCard className={`p-5 flex items-center justify-between transition-all ${event.status === 'approved' ? 'border-emerald-200 bg-emerald-50/50' : ''}`}>
-                    <div>
-                      <h4 className="font-bold text-slate-800">{event.name}</h4>
-                      <div className="flex gap-2 mt-1 items-center">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{event.startTime} - {event.endTime}</p>
+                  <GlassCard className={`p-4 flex items-center justify-between transition-all rounded-[2rem] ${event.status === 'approved' ? 'border-emerald-200 bg-emerald-50/50' : ''}`}>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-slate-800 text-sm">{event.name}</h4>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 items-center">
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{event.startTime} ({event.duration}m)</p>
                         <div className="flex gap-1">
-                          <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase ${event.energyLevel === 'High' ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                          <span className={`text-[7px] px-1.5 py-0.5 rounded-full font-black uppercase ${event.energyLevel === 'High' ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'}`}>
                             {event.energyLevel}
                           </span>
                           {event.isSolo && (
-                            <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-600 font-black uppercase">
+                            <span className="text-[7px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-600 font-black uppercase">
                               Solo
                             </span>
                           )}
                         </div>
                         <div className="flex gap-0.5">
                           {event.approvedBy.map(u => (
-                            <div key={u} className={`w-3 h-3 rounded-full ${u === 'L' ? 'bg-coral' : 'bg-sky'}`} />
+                            <div key={u} className={`w-2.5 h-2.5 rounded-full ${u === 'L' ? 'bg-coral' : 'bg-sky'}`} />
                           ))}
                         </div>
                       </div>
                     </div>
                     <button 
                       onClick={() => deleteEvent(event.id)}
-                      className="p-2 text-slate-200 hover:text-rose-400 transition-colors"
+                      className="p-2 text-slate-200 hover:text-rose-400 transition-colors ml-2"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
                   </GlassCard>
                 </div>
@@ -658,12 +646,12 @@ export default function App() {
 
         {view === 'swipe' && (
           <div className="flex-1 flex flex-col">
-            <div className="mb-8">
-              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Decision Time</p>
-              <h2 className="text-4xl font-black text-slate-800 tracking-tighter italic">Swipe Items</h2>
+            <div className="mb-4">
+              <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest mb-1">Decision Time</p>
+              <h2 className="text-2xl font-black text-slate-800 tracking-tighter italic">Swipe Items</h2>
             </div>
             
-            <div className="relative flex-1 min-h-[450px]">
+            <div className="relative flex-1 min-h-[400px] max-h-[60vh]">
               <AnimatePresence>
                 {backlogEvents.length > 0 ? (
                   backlogEvents.slice(0, 2).reverse().map((event, idx) => (
@@ -777,15 +765,6 @@ export default function App() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Location</label>
-                    <input 
-                      name="location"
-                      placeholder="e.g. The Rooftop"
-                      className="w-full bg-slate-50 border-none rounded-xl px-4 h-12 text-slate-800 font-bold placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-coral/20 transition-all"
-                    />
-                  </div>
-
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Start</label>
@@ -798,12 +777,12 @@ export default function App() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">End</label>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">Duration (mins)</label>
                       <input 
                         required
-                        type="time"
-                        name="endTime"
-                        defaultValue="19:30"
+                        type="number"
+                        name="duration"
+                        defaultValue="60"
                         className="w-full bg-slate-50 border-none rounded-xl px-4 h-12 text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-coral/20 transition-all"
                       />
                     </div>
